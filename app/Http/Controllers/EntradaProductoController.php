@@ -128,7 +128,7 @@ class EntradaProductoController extends Controller
         try {
             $productos = EntradaProducto::where('clientes_id', $clientes_id)
                 ->whereHas('producto', function ($query) {
-                    $query->where('estado_escaneo', 'NO');
+                    $query->where('estado_deuda', 'NO');
                 })
                 ->with('producto')
                 ->get();
@@ -149,5 +149,38 @@ class EntradaProductoController extends Controller
                 'message' => $e->getMessage()
             ], 500);
         }
+    }
+    public function getProductsByClientWithSum($clientes_id)
+    {
+        try {
+            $productos = EntradaProducto::where('clientes_id', $clientes_id)
+                ->whereHas('producto', function ($query) {
+                    $query->where('estado_deuda', 'SI');
+                })
+                ->with('producto')
+                ->get();
+
+            $totalDeuda = EntradaProducto::where('clientes_id', $clientes_id)
+                ->sum('total_deuda');
+
+            return response()->json([
+                'status' => 'success',
+                'data' => [
+                    'productos' => $productos,
+                    'total_deuda' => $totalDeuda
+                ]
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
+    public function showProducto($id)
+    {
+
+        $data = Producto::findOrFail($id);
+        return response()->json(['status' => 'success', 'data' => $data], 200);
     }
 }

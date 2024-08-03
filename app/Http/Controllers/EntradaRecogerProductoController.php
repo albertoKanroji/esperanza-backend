@@ -6,7 +6,10 @@ use Illuminate\Http\Request;
 use App\Models\EntradaRecogerProducto;
 use App\Models\Producto;
 use App\Models\EntradaProducto;
+use App\Models\SalidaRecogerProducto;
 use Illuminate\Support\Facades\Validator;
+use Endroid\QrCode\QrCode;
+use Endroid\QrCode\Writer\PngWriter;
 
 class EntradaRecogerProductoController extends Controller
 {
@@ -27,6 +30,34 @@ class EntradaRecogerProductoController extends Controller
             return response()->json(['status' => 'success', 'data' => $entrada], 200);
         } catch (\Exception $e) {
             return response()->json(['status' => 'error', 'data' => $e->getMessage()], 500);
+        }
+    }
+    public function getEntradasYSaliadasPorCliente($clienteId)
+    {
+        try {
+            // Obtener las entradas asociadas al cliente
+            $entradas = EntradaRecogerProducto::with(['cliente', 'trabajador', 'producto', 'camion'])
+                ->where('clientes_id', $clienteId)
+                ->get();
+
+            // Obtener las salidas asociadas al cliente
+            $salidas = SalidaRecogerProducto::with(['trabajador', 'producto', 'cliente', 'camion'])
+                ->where('clientes_id', $clienteId)
+                ->get();
+
+            // Devolver las entradas y salidas en una sola respuesta JSON
+            return response()->json([
+                'status' => 'success',
+                'data' => [
+                    'entradas' => $entradas,
+                    'salidas' => $salidas
+                ]
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status' => 'error',
+                'message' => $e->getMessage()
+            ], 500);
         }
     }
 
@@ -181,5 +212,78 @@ class EntradaRecogerProductoController extends Controller
         } catch (\Exception $e) {
             return response()->json(['status' => 'error', 'data' => $e->getMessage()], 500);
         }
+    }
+
+    public function generateQrCode($productos_id)
+    {
+        try {
+            // Encuentra la entrada del producto con sus relaciones
+            $entradaProducto = EntradaProducto::where('productos_id', $productos_id)
+                ->with(['cliente', 'trabajador', 'producto'])
+                ->first();
+
+            // Verifica que la entrada exista y que las relaciones existan
+            if (!$entradaProducto) {
+                return response()->json([
+                    'status' => 'error',
+                    'data' => 'No se encontró la entrada del producto.'
+                ], 404);
+            }
+
+            $cliente = $entradaProducto->cliente;
+            $trabajador = $entradaProducto->trabajador;
+            $producto = $entradaProducto->producto;
+
+            if (!$cliente || !$trabajador || !$producto) {
+                return response()->json([
+                    'status' => 'error',
+                    'data' => 'Faltan datos necesarios para generar el código QR.'
+                ], 400);
+            }
+
+            // Verifica si el producto tiene deuda pendiente
+            $totalDeuda = EntradaProducto::where('productos_id', $productos_id)
+                ->where('clientes_id', $cliente->id)
+                ->sum('total_deuda');
+
+            if ($totalDeuda > 0) {
+                return response()->json([
+                    'status' => 'error',
+                    'data' => [
+                        'message' => 'El producto tiene deuda pendiente.',
+                        'total_deuda' => $totalDeuda,
+
+                    ]
+                ], 400);
+            }
+
+            // Construye los datos en formato JSON
+            $data = [
+                'clientes_id' => $cliente->id,
+                'trabajadores_id' => $trabajador->id,
+                'productos_id' => $producto->id,
+                'estado' => 'entrada'
+            ];
+
+            // Convierte los datos a JSON
+            $jsonData = json_encode($data);
+
+            // Genera el código QR
+            $qrCode = new QrCode($jsonData);
+            $writer = new PngWriter();
+            $qrCodeImage = $writer->write($qrCode);
+
+            // Establece la respuesta con el código QR en formato PNG
+            return response($qrCodeImage->getString(), 200)
+                ->header('Content-Type', 'image/png');
+        } catch (\Exception $e) {
+            return response()->json(['status' => 'error', 'data' => $e->getMessage()], 500);
+        }
+    }
+    public function showProducto($id)
+    {
+
+        $data = Producto::find($id);
+        return response()->json(['status' => 'success', 'data' => $data], 200);
     }
 }
