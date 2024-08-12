@@ -27,11 +27,11 @@ class EntradaProducto extends Model
 
     public function trabajador()
     {
-        return $this->belongsTo(Trabajador::class, 'trabajadores_id');
+        return $this->belongsTo(User::class, 'trabajadores_id');
     }
 
     public function cliente()
     {
-        return $this->belongsTo(Cliente::class, 'clientes_id');
+        return $this->belongsTo(User::class, 'clientes_id');
     }
 }
