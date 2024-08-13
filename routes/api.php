@@ -5,6 +5,10 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\EntradaProductoController;
 use App\Http\Controllers\EntradaRecogerProductoController;
 use App\Http\Controllers\SalidaRecogerProductoController;
+
+use App\Http\Controllers\AuthController;
+/* use App\Http\Controllers\PasswordResetController; */
+
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -15,6 +19,14 @@ use App\Http\Controllers\SalidaRecogerProductoController;
 | is assigned the "api" middleware group. Enjoy building your API!
 |
 */
+
+Route::prefix('auth')->group(function () {
+    Route::post('register', [AuthController::class, 'register']);
+    Route::post('login', [AuthController::class, 'login']);
+    /* Route::post('password/email', [PasswordResetController::class, 'sendResetLinkEmail']);
+    Route::post('password/reset', [PasswordResetController::class, 'reset']); */
+});
+
 
 Route::post('entrada-producto', [EntradaProductoController::class, 'store']);
 Route::get('entradas-producto', [EntradaProductoController::class, 'index']);
